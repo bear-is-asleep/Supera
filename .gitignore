@@ -20,6 +20,7 @@
 CMakeLists.txt
 !experiments/*/CMakeLists.txt
 FMWKInterface.*
+ExperimentTypes.*
 *.txt
 *.bin
 *.root
@@ -43,3 +44,5 @@ app/Supera/APILArSoft/supera.fcl
 .DS_Store
 *.pdf
 *.o
+*.dff
+SBND_notes.md
