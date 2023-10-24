@@ -7,6 +7,9 @@
 #include "larcv/core/DataFormat/EventVoxel3D.h"
 #include "larcv/core/DataFormat/EventVoxel2D.h"
 
+//Timeing
+#include <chrono>
+
 namespace larcv {
 
   static SuperaMCParticleClusterProcessFactory __global_SuperaMCParticleClusterProcessFactory__;
@@ -167,6 +170,7 @@ namespace larcv {
   std::vector<supera::ParticleGroup>
   SuperaMCParticleCluster::CreateParticleGroups()
   {
+    LARCV_DEBUG() << "****---- CreateParticleGroups" << std::endl;
     const larcv::Particle invalid_part;
     auto const& larmcp_v = LArData<supera::LArMCParticle_t>();
     auto const& parent_pdg_v = _mcpl.ParentPdgCode();
@@ -185,6 +189,7 @@ namespace larcv {
       if(pdg_code > 1000000) continue;
 
       supera::ParticleGroup grp(_valid_nplanes);
+      LARCV_DEBUG() << "grp.part make particle" << std::endl;
       grp.part = this->MakeParticle(mcpart);
 
       if(mother_index >= 0)
@@ -227,10 +232,10 @@ namespace larcv {
           grp.type = supera::kNeutron;
         result[track_id] = grp;
       }
-
-      /*std::cout<<"Track ID " << grp.part.track_id() << " PDG " << grp.part.pdg_code() << " " << grp.part.creation_process()
+      LARCV_DEBUG() << "***--- first_step in for loop " << grp.part.first_step().x() <<
+      "Track ID " << grp.part.track_id() << " PDG " << grp.part.pdg_code() << " " << grp.part.creation_process()
          <<" ... parent Track ID " << grp.part.parent_track_id() << " PDG " << grp.part.parent_pdg_code() << std::endl;
-      */
+      
     }
 
     // fill parentage information
@@ -613,7 +618,7 @@ namespace larcv {
 
           if(skipped2d || skipped3d) {
 
-            LARCV_INFO() << "Skipped 2d/3d " << (skipped2d ? "1" : "0") << "/" << (skipped3d ? "1" : "0") << " TrackID " << edep.trackID
+            LARCV_DEBUG() << "Skipped 2d/3d " << (skipped2d ? "1" : "0") << "/" << (skipped3d ? "1" : "0") << " TrackID " << edep.trackID
              << " pos (" << pt.x << "," << pt.y << "," << pt.z << ")"
              << " ... TDC " << tick_ides.first << " => Tick " << time_pos
              << "... Wire " << wid.Wire
@@ -738,6 +743,7 @@ namespace larcv {
   {
     int merge_ctr = 0;
     int invalid_ctr = 0;
+    auto start_merge = std::chrono::high_resolution_clock::now();
     do {
       merge_ctr = 0;
       for(auto& grp : part_grp_v) {
@@ -785,13 +791,15 @@ namespace larcv {
           merge_ctr++;
         }
       }
-      LARCV_INFO() << "Merge counter: " << merge_ctr << " invalid counter: " << invalid_ctr << std::endl;
+      auto end_merge = std::chrono::high_resolution_clock::now();
+      auto duration_merge = std::chrono::duration_cast<std::chrono::microseconds>(end_merge - start_merge);
+      LARCV_DEBUG() << "Merge Shower Conversion counter: " << merge_ctr << " invalid counter: " << invalid_ctr << std::endl;
+      LARCV_DEBUG() << "Merge Shower Conversion time: "<< duration_merge.count() *1e3 << " ms"<<std::endl;
     }while(merge_ctr>0);
   }
 
-
   void SuperaMCParticleCluster::MergeShowerFamilyTouching(const larcv::Voxel3DMeta& meta,
-                std::vector<supera::ParticleGroup>& part_grp_v)
+                  std::vector<supera::ParticleGroup>& part_grp_v)
   {
     // Merge touching shower fragments
     // Direct parentage between kShapeShower => kShapeShower/kShapeDelta/kShapeMichel
@@ -799,7 +807,10 @@ namespace larcv {
     int invalid_ctr = 0;
     do {
       merge_ctr = 0;
+      int for_loop_ctr = 0;
+      auto start_merge = std::chrono::high_resolution_clock::now();
       for(auto& grp : part_grp_v) {
+        auto start = std::chrono::high_resolution_clock::now();
         if(!grp.valid) continue;
         if(grp.shape() != larcv::kShapeShower) continue;
         // search for a possible parent
@@ -821,16 +832,22 @@ namespace larcv {
         }
         if(parent_trackid < 0 || parent_trackid == (int)(grp.part.track_id())) continue;
         auto& parent = part_grp_v[parent_trackid];
-        //auto parent_type = part_grp_v[parent_trackid].type;
-        //if(parent_type == supera::kTrack || parent_type == supera::kNeutron) continue;
         if(parent.shape() != larcv::kShapeShower && parent.shape() != larcv::kShapeDelta && parent.shape() != larcv::kShapeMichel) continue;
         if(this->IsTouching(meta,grp.vs,parent.vs)) {
           // if parent is found, merge
           parent.Merge(grp);
           merge_ctr++;
         }
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        LARCV_DEBUG() << "Time taken for for-loop " << for_loop_ctr << " : " << duration.count() << " microseconds" << std::endl;
+        LARCV_DEBUG() << "Group size : " << grp.size_all() << std::endl; 
+        for_loop_ctr++;
       }
-      LARCV_INFO() << "Merge counter: " << merge_ctr << " invalid counter: " << invalid_ctr << std::endl;
+      auto end_merge = std::chrono::high_resolution_clock::now();
+      auto duration_merge = std::chrono::duration_cast<std::chrono::microseconds>(end_merge - start_merge);
+      LARCV_DEBUG() << "Merge counter: " << merge_ctr << " invalid counter: " << invalid_ctr << 
+      " time : " << duration_merge.count()*1e3 << " ms" << std::endl;
     }while(merge_ctr>0);
   }
 
@@ -928,7 +945,7 @@ namespace larcv {
           }
         }
       }
-      LARCV_INFO() << "Merge counter: " << merge_ctr << std::endl;
+      LARCV_DEBUG() << "Merge counter: " << merge_ctr << std::endl;
     }while(merge_ctr>0);
   }
 
@@ -1128,6 +1145,7 @@ namespace larcv {
     _meta2d_v.resize(_valid_nplanes);
     for(size_t cryo_id=0; cryo_id < _scan.size(); cryo_id++) {
       for(size_t tpc_id=0; tpc_id < _scan[cryo_id].size(); tpc_id++) {
+        LARCV_DEBUG() << "***--- cryo, tpc " << cryo_id << ", " << tpc_id <<std::endl;
         for(size_t plane_id=0; plane_id < _scan[cryo_id][tpc_id].size(); ++plane_id) {
           auto meta2d_idx = _scan[cryo_id][tpc_id][plane_id];
           if(meta2d_idx < 0) continue;
@@ -1145,7 +1163,12 @@ namespace larcv {
 
     // Build MCParticle List
     auto const& larmcp_v = LArData<supera::LArMCParticle_t>();
-    std::cout << "larmcp_v size = " << larmcp_v.size() << std::endl;
+    LARCV_INFO() << "larmcp_v size = " << larmcp_v.size() << std::endl;
+    // for (auto const& mcp : larmcp_v){
+    //   LARCV_DEBUG() << "*****----- particle : "
+    //   " track " << mcp.TrackId() << " , " <<
+    //   std::endl;
+    // }
     auto const *ev = GetEvent();
     _mcpl.Update(larmcp_v,ev->id().run(),ev->id().event());
 
@@ -1183,45 +1206,81 @@ namespace larcv {
          <<" ... parent Track ID " << grp.part.parent_track_id() << " PDG " << grp.part.parent_pdg_code() << std::endl;
     }
     */
-
+    
     // Merge fragments of showers
     LARCV_INFO() << "Merging: shower ionization" << std::endl;
+    auto start = std::chrono::high_resolution_clock::now();
     this->MergeShowerIonizations(part_grp_v);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end-start;
+    LARCV_INFO() << "Elapsed time for MergeShowerIonizations: " << elapsed_seconds.count() << "s\n";
 
     // Merge touching LEScatter showers
     LARCV_INFO() << "Merging: touching LEScatters" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
     this->MergeShowerTouchingLEScatter(meta3d,part_grp_v);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed_seconds = end-start;
+    LARCV_INFO() << "Elapsed time for MergeShowerTouchingLEScatter: " << elapsed_seconds.count() << "s\n";
 
     // Apply energy threshold
     LARCV_INFO() << "Applying energy threshold" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
     this->ApplyEnergyThreshold(part_grp_v);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed_seconds = end-start;
+    LARCV_INFO() << "Elapsed time for ApplyEnergyThreshold: " << elapsed_seconds.count() << "s\n";
 
     // Merge fragments of showers
     LARCV_INFO() << "Merging: shower conversions" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
     this->MergeShowerConversion(part_grp_v);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed_seconds = end-start;
+    LARCV_INFO() << "Elapsed time for MergeShowerConversion: " << elapsed_seconds.count() << "s\n";
 
     // Merge touching shower fragments
     // Direct parentage between kShapeShower => kShapeShower/kShapeDelta/kShapeMichel
     LARCV_INFO() << "Merging: shower family touching" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
     this->MergeShowerFamilyTouching(meta3d,part_grp_v);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed_seconds = end-start;
+    LARCV_INFO() << "Elapsed time for MergeShowerFamilyTouching: " << elapsed_seconds.count() << "s\n";
 
     // Merge touching shower fragments (in a family)
     LARCV_INFO() << "Merging: shower touching" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
     this->MergeShowerTouching(meta3d,part_grp_v);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed_seconds = end-start;
+    LARCV_INFO() << "Elapsed time for MergeShowerTouching: " << elapsed_seconds.count() << "s\n";
 
     // Merge touching showers in 2D
     LARCV_INFO() << "Merging: shower touching (2d)" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
     this->MergeShowerTouching2D(part_grp_v);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed_seconds = end-start;
+    LARCV_INFO() << "Elapsed time for MergeShowerTouching2D: " << elapsed_seconds.count() << "s\n";
 
     // merge too small deltas into tracks
     if (_merge_shower_delta) {
       LARCV_INFO() << "Merging: delta rays" << std::endl;
+      start = std::chrono::high_resolution_clock::now();
       this->MergeShowerDeltas(part_grp_v);
+      end = std::chrono::high_resolution_clock::now();
+      elapsed_seconds = end-start;
+      LARCV_INFO() << "Elapsed time for MergeShowerDeltas: " << elapsed_seconds.count() << "s\n";
     }
 
     // Merge touching LEScatter showers
     LARCV_INFO() << "Merging: touching LEScatters" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
     this->MergeShowerTouchingLEScatter(meta3d,part_grp_v);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed_seconds = end-start;
+    LARCV_INFO() << "Elapsed time for MergeShowerTouchingLEScatter: " << elapsed_seconds.count() << "s\n";
     /*
     std::cout<< "Listing non-zero voxel particles..." << std::endl;
     for(auto const& grp : part_grp_v) {
@@ -1236,29 +1295,30 @@ namespace larcv {
     std::set<unsigned int> mcs_trackid_s;
     auto const& mcs_v = LArData<supera::LArMCShower_t>();
     for(auto const& mcs : mcs_v) {mcs_trackid_s.insert(mcs.TrackID());}
-    for(auto const& mcs : mcs_v) {std::cout << "MCShower " << mcs.TrackID() << std::endl;}
+    for(auto const& mcs : mcs_v) {LARCV_DEBUG() << "MCShower " << mcs.TrackID() << std::endl;}
     std::vector<int> trackid2output(trackid2index.size(),-1);
     std::vector<int> output2trackid;
     output2trackid.reserve(trackid2index.size());
-    std::cout << "Filling output2trackid - part_grp_v size = " << part_grp_v.size() << std::endl;
+    LARCV_DEBUG() << "Filling output2trackid - part_grp_v size = " << part_grp_v.size() << std::endl;
     for(size_t trackid=0; trackid<part_grp_v.size(); trackid++) {
       auto& grp = part_grp_v[trackid];
       grp.part.energy_deposit((grp.vs.size() ? grp.vs.sum() : 0.));
       size_t output_counter = output2trackid.size();
       if(mcs_trackid_s.find(trackid) != mcs_trackid_s.end()){
-        std::cout << "adding " << trackid << std::endl;
+        LARCV_DEBUG() << "adding " << trackid << std::endl;
         grp.valid=true;
         grp.part.group_id(output_counter);
       }
-      else{
-        if ((grp.part.track_id() == 32330) || (grp.part.track_id() == 32407)) std::cout << grp.part.track_id() << " " << grp.valid << " " << grp.size_all() << " " << grp.shape() << " " << larcv::kShapeLEScatter << std::endl;
+      else{ // Fix this by setting UseOrigTrackID: false in superaMCParticleCluster fcl
+        LARCV_DEBUG() << "***--- Laura debug " << grp.part.track_id() << " " << grp.valid << " " << grp.size_all() << " " << grp.shape() << " " << larcv::kShapeLEScatter << trackid << std::endl;
+        
         if(!grp.valid) continue;
         if(grp.size_all()<1) continue;
         if(grp.shape() == larcv::kShapeLEScatter) continue;
       }
 
       //std::cout << grp.shape() << " " << grp.size_all() << std::endl;
-      //std::cout << grp.part.track_id() << larcv::kINVALID_UINT << std::endl;
+      LARCV_DEBUG() << "***--- track id in particle group : " << grp.part.track_id() << " "<< larcv::kINVALID_UINT << std::endl;
       if (grp.part.track_id() == larcv::kINVALID_UINT) continue;
       grp.part.id(output_counter);
       trackid2output[grp.part.track_id()] = output_counter;
@@ -1266,7 +1326,7 @@ namespace larcv {
         trackid2output[child] = output_counter;
       output2trackid.push_back(grp.part.track_id());
       ++output_counter;
-      std::cout << "Added to output2trackid " << grp.part.track_id() << std::endl;
+      LARCV_DEBUG() << "Added to output2trackid " << grp.part.track_id() << std::endl;
     }
 
 
@@ -1334,8 +1394,24 @@ namespace larcv {
         }
         */
         // see if first step is not set yet
+        LARCV_DEBUG() << "*****----- shower ancestor before output id: "<< output_id << " -- " << "track id " << track_id << 
+      " mother information " << mcs.MotherStart().X() <<" , "<<
+               mcs.MotherStart().Y() << " , " <<
+               mcs.MotherStart().Z() << " , " <<
+      " ancestor " << mcs.AncestorStart().X() <<" , "<<
+               mcs.AncestorStart().Y() << " , " <<
+               mcs.AncestorStart().Z() << " , " <<
+               mcs.AncestorTrackID() << " , " <<
+               mcs.AncestorPdgCode() << " , " <<
+      " track " << mcs.Start().X() <<" , "<<
+               mcs.Start().Y() << " , " <<
+               mcs.Start().Z() << " , " <<
+               mcs.TrackID() << " , " <<
+               mcs.PdgCode() << " , " <<
+      std::endl;
         if(grp.first_pt.t == larcv::kINVALID_DOUBLE)
           grp.part.first_step(mcs.DetProfile().X(),mcs.DetProfile().Y(),mcs.DetProfile().Z(),mcs.DetProfile().T());
+        LARCV_DEBUG()<<mcs.DetProfile().T()<<std::endl;
         grp.part.parent_position(mcs.MotherStart().X(),
                mcs.MotherStart().Y(),
                mcs.MotherStart().Z(),
@@ -1381,11 +1457,30 @@ namespace larcv {
     // loop over MCTrack to assign parent/ancestor information
     auto const& mct_v = LArData<supera::LArMCTrack_t>();
     LARCV_INFO() << "Processing MCTrack array: " << mct_v.size() << std::endl;
+    //for (auto const& out_id : trackid2output){
+    //  LARCV_DEBUG() << "***--- out_id " << out_id << std::endl;
+    //}
     for(auto const& mct : mct_v) {
       int track_id  = mct.TrackID();
       int output_id = trackid2output[track_id];
+
       //int group_id  = -1;
       int group_id  = output_id;
+      LARCV_DEBUG() << "*****----- track ancestor before output id: "<< output_id << " -- " << "track id " << track_id << 
+      " mother information " << mct.MotherStart().X() <<" , "<<
+               mct.MotherStart().Y() << " , " <<
+               mct.MotherStart().Z() << " , " <<
+      " ancestor " << mct.AncestorStart().X() <<" , "<<
+               mct.AncestorStart().Y() << " , " <<
+               mct.AncestorStart().Z() << " , " <<
+               mct.AncestorTrackID() << " , " <<
+               mct.AncestorPdgCode() << " , " <<
+      " track " << mct.Start().X() <<" , "<<
+               mct.Start().Y() << " , " <<
+               mct.Start().Z() << " , " <<
+               mct.TrackID() << " , " <<
+               mct.PdgCode() << " , " <<
+      std::endl;
       if(output_id >= 0) {
         auto& grp = part_grp_v[track_id];
         assert(grp.part.group_id() == larcv::kINVALID_INSTANCEID);
@@ -1396,6 +1491,7 @@ namespace larcv {
         }
         */
         grp.part.group_id(group_id);
+        LARCV_DEBUG() << "*****----- track ancestor "<< mct.AncestorStart().X()  << ", "<<mct.AncestorStart().Y()  << ", "<<mct.AncestorStart().Z() << std::endl;
         if(grp.first_pt.t == larcv::kINVALID_DOUBLE && mct.size())
           grp.part.first_step(mct.front().X(),mct.front().Y(),mct.front().Z(),mct.front().T());
         if(grp.last_pt.t == larcv::kINVALID_DOUBLE && mct.size())
@@ -1412,6 +1508,21 @@ namespace larcv {
         grp.part.ancestor_track_id(mct.AncestorTrackID());
         grp.part.ancestor_pdg_code(mct.AncestorPdgCode());
         grp.part.ancestor_creation_process(mct.AncestorProcess());
+        /* for showers
+                  grp.part.first_step(mcs.DetProfile().X(),mcs.DetProfile().Y(),mcs.DetProfile().Z(),mcs.DetProfile().T());
+        grp.part.parent_position(mcs.MotherStart().X(),
+               mcs.MotherStart().Y(),
+               mcs.MotherStart().Z(),
+               mcs.MotherStart().T());
+        grp.part.parent_creation_process(mcs.MotherProcess());
+        grp.part.ancestor_position(mcs.AncestorStart().X(),
+                 mcs.AncestorStart().Y(),
+                 mcs.AncestorStart().Z(),
+                 mcs.AncestorStart().T());
+        grp.part.ancestor_track_id(mcs.AncestorTrackID());
+        grp.part.ancestor_pdg_code(mcs.AncestorPdgCode());
+        grp.part.ancestor_creation_process(mcs.AncestorProcess());
+        */
       }
       for(size_t output_index=0; output_index<output2trackid.size(); ++output_index) {
         int output_trackid = output2trackid[output_index];
@@ -1952,7 +2063,7 @@ namespace larcv {
       // Now, we will re-classify some of non LEScatter showers based on pixel count
       // (BUG FIX: use pca or something better)
       if(grp.vs.size() < _compton_size) {
-        LARCV_INFO() << "Particle ID " << grp.part.id() << " PDG " << grp.part.pdg_code() << " " << grp.part.creation_process() << std::endl
+        LARCV_DEBUG() << "Particle ID " << grp.part.id() << " PDG " << grp.part.pdg_code() << " " << grp.part.creation_process() << std::endl
                << "  ... type switching " << grp.part.shape() << " => " << larcv::kShapeLEScatter
                << " (voxel count " << grp.vs.size() << " < " << _compton_size << ")" << std::endl;
         semantic = larcv::kShapeLEScatter;
@@ -2012,7 +2123,7 @@ namespace larcv {
              << semantic << " pixel count " << grp.vs.size()
              << " (not kShapeLEScatter) at line " << __LINE__
              << std::endl;
-        std::cout<<grp.part.dump()<<std::endl;
+        LARCV_DEBUG()<<grp.part.dump()<<std::endl;
         throw std::exception();
       }
       int trackid = grp.part.parent_track_id();
@@ -2106,27 +2217,27 @@ namespace larcv {
         }
         ctr++;
         auto const& part = grp.part;
-        LARCV_INFO() << "Particle ID " << part.id() << " Type " << grp.type << " Valid " << grp.valid << " Track ID " << part.track_id() << " PDG " << part.pdg_code()
+        LARCV_DEBUG() << "Particle ID " << part.id() << " Type " << grp.type << " Valid " << grp.valid << " Track ID " << part.track_id() << " PDG " << part.pdg_code()
                << " " << part.creation_process() << " ... " << part.energy_init() << " MeV => " << part.energy_deposit() << " MeV "
                << grp.trackid_v.size() << " children " << grp.vs.size() << " voxels " << grp.vs.sum() << " MeV" << std::endl;
-        LARCV_INFO() << "  Parent " << part.parent_track_id() << " PDG " << part.parent_pdg_code() << " " << part.parent_creation_process()
+        LARCV_DEBUG() << "  Parent " << part.parent_track_id() << " PDG " << part.parent_pdg_code() << " " << part.parent_creation_process()
                << " Ancestor " << part.ancestor_track_id() << " PDG " << part.ancestor_pdg_code() << " " << part.ancestor_creation_process() << std::endl;
-        LARCV_INFO() << "  Group ID: " << part.group_id() << std::endl;
+        LARCV_DEBUG() << "  Group ID: " << part.group_id() << std::endl;
         std::stringstream ss1,ss2;
 
         ss1 << "  Children particle IDs: " << std::flush;
         for(auto const& child : part.children_id()) ss1 << child << " " << std::flush;
         ss1 << std::endl;
-        LARCV_INFO() << ss1.str();
+        LARCV_DEBUG() << ss1.str();
 
         ss2 << "  Children track IDs: " << std::flush;
         for(auto const& child : grp.trackid_v) ss2 << child << " " << std::flush;
         ss2 << std::endl;
-        LARCV_INFO() << ss2.str();
-        LARCV_INFO() << "Above was supposed to be merged..." << std::endl;
+        LARCV_DEBUG() << ss2.str();
+        LARCV_DEBUG() << "Above was supposed to be merged..." << std::endl;
 
       }
-      LARCV_INFO() << "... " << ctr << " particles" << std::endl;
+      LARCV_DEBUG() << "... " << ctr << " particles" << std::endl;
     }
     event_leftover->emplace(std::move(leftover_vs),meta3d);
     if(_store_dedx)
@@ -2139,27 +2250,27 @@ namespace larcv {
       auto const& part = part_v[index];
       auto const& vs0  = main_vs[index];
       auto const& vs1  = lowe_vs[index];
-      LARCV_INFO() << "Particle ID " << part.id() << " Track ID " << part.track_id() << " PDG " << part.pdg_code()
+      LARCV_DEBUG() << "Particle ID " << part.id() << " Track ID " << part.track_id() << " PDG " << part.pdg_code()
        << " " << part.creation_process() << " ... " << part.energy_init() << " MeV => " << part.energy_deposit() << " MeV "
        << grp.trackid_v.size() << " children " << vs0.size() << " (" << vs1.size() << ") voxels" << std::endl;
-      LARCV_INFO() << "  Parent TrackID " << part.parent_track_id() << " PartID " << part.parent_id()
+      LARCV_DEBUG() << "  Parent TrackID " << part.parent_track_id() << " PartID " << part.parent_id()
        << " PDG " << part.parent_pdg_code() << " " << part.parent_creation_process()
        << " Ancestor TrackID " << part.ancestor_track_id()
        << " PDG " << part.ancestor_pdg_code() << " " << part.ancestor_creation_process() << std::endl;
-      LARCV_INFO() << "  Group ID: " << part.group_id() << std::endl;
+      LARCV_DEBUG() << "  Group ID: " << part.group_id() << std::endl;
       std::stringstream ss1,ss2;
 
       ss1 << "  Children particle IDs: " << std::flush;
       for(auto const& child : part.children_id()) ss1 << child << " " << std::flush;
       ss1 << std::endl;
-      LARCV_INFO() << ss1.str();
+      LARCV_DEBUG() << ss1.str();
 
       ss2 << "  Children track IDs: " << std::flush;
       for(auto const& child : grp.trackid_v) ss2 << child << " " << std::flush;
       ss2 << std::endl;
-      LARCV_INFO() << ss2.str();
+      LARCV_DEBUG() << ss2.str();
 
-      LARCV_INFO() << "  Start: " << part.first_step().x() << " " << part.first_step().y() << " " << part.first_step().z() << std::endl;
+      LARCV_DEBUG() << "  Start: " << part.first_step().x() << " " << part.first_step().y() << " " << part.first_step().z() << std::endl;
     }
     LARCV_INFO() << "... " << part_v.size() << " particles" << std::endl;
 
@@ -2459,6 +2570,11 @@ namespace larcv {
     // parent position
     // ancestor track id
     // ancestor position
+    LARCV_DEBUG() << "***---- track_id " << larmcp.TrackId() << " mother " << larmcp.Mother() << " shape " << larcv::kShapeShower <<
+    " first_step ParticleCluster " << larmcp.Vx() << " , " << larmcp.Vy() << " , " << larmcp.Vz() << "," << 
+
+    
+    std::endl;
     return res;
   }
 
