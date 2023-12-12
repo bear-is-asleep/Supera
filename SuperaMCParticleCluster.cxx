@@ -374,10 +374,12 @@ namespace larcv {
       VoxelID_t vox_id = meta.id(sedep.X(), sedep.Y(), sedep.Z());
       if(vox_id == larcv::kINVALID_VOXELID || !_world_bounds.contains(sedep.X(),sedep.Y(),sedep.Z()))
         continue;
-
       int track_id = abs(sedep.TrackID());
       if(track_id >= ((int)(trackid2index.size())))
         continue;
+
+      LARCV_DEBUG() << "Recording sedep from track id " << sedep.TrackID()
+        << " E=" << sedep.Energy() << std::endl;
 
       supera::EDep pt;
       pt.x = sedep.X();
@@ -410,10 +412,13 @@ namespace larcv {
     LARCV_INFO() << "Processing SimChannel array: " << sch_v.size() << std::endl;
 
     auto const& trackid2index = _mcpl.TrackIdToIndex();
-
+    LARCV_DEBUG() << "trackid2index size " << trackid2index.size() << std::endl;
     std::vector<std::map<VoxelID_t,std::unordered_set<VoxelID_t> > > true2reco_v;
+    LARCV_DEBUG() << "true2reco_v size " << true2reco_v.size() << std::endl;
     bool use_true2reco = !(_true2reco == nullptr);
+    LARCV_DEBUG() << "get_true2reco_bytrack" << _true2reco->get_true2reco_bytrack().size() << std::endl;
     if(use_true2reco) true2reco_v = _true2reco->get_true2reco_bytrack();
+    LARCV_DEBUG() << "true2reco_v size after potential resize " << true2reco_v.size() << std::endl;
 
     size_t ctr_missing_trackid = 0;
     size_t ctr_invalid_trackid = 0;
@@ -422,6 +427,7 @@ namespace larcv {
     size_t ctr_total_ide = 0;
 
     std::set<size_t> missing_trackid;
+    LARCV_DEBUG() << "set missing trackid size " << missing_trackid.size() << std::endl;
 
     bool analyze3d = false;
     bool analyze2d = false;
@@ -431,11 +437,13 @@ namespace larcv {
     std::pair<double,double> recorded_xrange2d, recorded_trange2d;
     std::pair<double,double> xrange2d,trange2d;
 
+    LARCV_DEBUG() << "setting pairs" << std::endl;
+
     xrange2d.first = trange2d.first = recorded_xrange2d.first = recorded_trange2d.first = 1.e20;
     xrange2d.second = trange2d.second = recorded_xrange2d.second = recorded_trange2d.second = -1.e20;
 
     //larcv::VoxelSet kvs;
-
+    LARCV_DEBUG() << "Looping through SimChannel array" << std::endl;
     for(auto const& sch : sch_v) {
 
       auto ch = sch.Channel();
@@ -449,7 +457,7 @@ namespace larcv {
       analyze2d = (vs2d_idx >= 0 && _meta2d_v[vs2d_idx].min_x() <= wid.Wire && wid.Wire < _meta2d_v[vs2d_idx].max_x());
 
       if(!analyze2d && !analyze3d) continue;
-
+      LARCV_DEBUG() << "Processing channel " << ch << " ... analyze 2d/3d " << (analyze2d ? "1" : "0") << "/" << (analyze3d ? "1" : "0") << std::endl;
       for (auto const &tick_ides : sch.TDCIDEMap()) {
 
         //x_pos = (supera::TPCTDC2Tick(tick_ides.first) + time_offset) * supera::TPCTickPeriod()  * supera::DriftVelocity();
@@ -491,6 +499,7 @@ namespace larcv {
           }
           */
           int track_id = abs(_useOrigTrackID ? edep.origTrackID : edep.trackID);
+          LARCV_DEBUG() << "track id " << track_id << "orig track id " << edep.origTrackID << " trackID " << edep.trackID << std::endl;
           if(track_id >= ((int)(trackid2index.size()))) {
             ++ctr_missing_trackid;
             missing_trackid.insert(track_id);
@@ -1192,6 +1201,7 @@ namespace larcv {
     LARCV_INFO() << "Analyzing First Step" << std::endl;
     if(_use_sed_points && !_use_sed) {
       if (_use_sed_lite) {
+        LARCV_DEBUG() << "Using LArSimEnergyDepositLite_t" << std::endl;
         this->AnalyzeFirstLastStep<supera::LArSimEnergyDepositLite_t>(meta3d, part_grp_v);
       }else {
         this->AnalyzeFirstLastStep<supera::LArSimEnergyDeposit_t>(meta3d, part_grp_v);
@@ -1309,8 +1319,8 @@ namespace larcv {
         grp.valid=true;
         grp.part.group_id(output_counter);
       }
-      else{ // Fix this by setting UseOrigTrackID: false in superaMCParticleCluster fcl
-        LARCV_DEBUG() << "***--- Laura debug " << grp.part.track_id() << " " << grp.valid << " " << grp.size_all() << " " << grp.shape() << " " << larcv::kShapeLEScatter << trackid << std::endl;
+      else{ 
+        //LARCV_DEBUG() << "***--- Laura debug " << grp.part.track_id() << " " << grp.valid << " " << grp.size_all() << " " << grp.shape() << " " << larcv::kShapeLEScatter << trackid << std::endl;
         
         if(!grp.valid) continue;
         if(grp.size_all()<1) continue;

@@ -175,7 +175,7 @@ void LArSoftSuperaDriver::analyze(art::Event const & e)
 
   // mcminipart
   if(_verbosity==0) std::cout << "Checking MCMiniPart data request" << std::endl;
-  get_label<sim::MCParticleLite>(e, ::supera::LArDataType_t::kLArMCMiniPart_t, true);
+  get_label<simb::MCParticle>(e, ::supera::LArDataType_t::kLArMCMiniPart_t, true); //should add option to use MCParticleLite??
   //
   // SimEnergyDeposit
   if(_verbosity==0) std::cout << "Checking SimEnergyDeposit data request" << std::endl;

@@ -816,11 +816,14 @@ namespace larcv {
   {
     std::vector<std::map<VoxelID_t, std::unordered_set<VoxelID_t> > > result;
     for (auto& [true_pt, reco_pts] : _true2reco) {
+      LARCV_DEBUG() << "true_pt.track_id: " << true_pt.track_id << std::endl;
+      LARCV_DEBUG() << "result.size(): " << result.size() << std::endl;
       result.resize(std::max(result.size(),(size_t)(abs(true_pt.track_id) + 1)));
       auto& target = result[abs(true_pt.track_id)];
       for (auto& reco_pt : reco_pts) {
-	insert_one_to_many(target, true_pt.voxel_id, reco_pt.get_id());
-	  }
+        //LARCV_DEBUG() << "reco_pt.track_id: " << reco_pt.track_id << std::endl;
+	      insert_one_to_many(target, true_pt.voxel_id, reco_pt.get_id());
+	    }
     }
     return result;
   }
