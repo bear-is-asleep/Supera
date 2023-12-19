@@ -59,6 +59,9 @@ namespace larcv {
       //std::cout << "mct_index is " << label << " " << label_idx << std::endl;
 
       auto const& mct = mct_v[mct_index];
+			LARCV_DEBUG() << "MCTruth " << mct_index << " from " << label << std::endl;
+			LARCV_DEBUG() << "_pass_origin " << _pass_origin
+				<< " mct.Origin() " << mct.Origin() << std::endl;
 
       if(_pass_origin && mct.Origin() != _pass_origin)
 	continue;

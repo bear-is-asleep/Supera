@@ -212,16 +212,25 @@ namespace larcv {
 
   template <> void SuperaBase::LArData(const std::vector<supera::LArMCParticle_t>& data_v)
   {
+    LARCV_DEBUG() << "SuperaBase::LArData<supera::LArMCParticle_t>()" << std::endl;
+    LARCV_DEBUG() << "data_v.size() = "<<data_v.size()<<std::endl;
     _ptr_mcp_v = (std::vector<supera::LArMCParticle_t>*)(&data_v);
+    LARCV_DEBUG() << "_ptr_mcp_v->size() = "<<_ptr_mcp_v->size()<<std::endl;
   }
 
   template <> void SuperaBase::LArData(const std::vector<supera::LArMCMiniPart_t>& data_v)
   {
+    LARCV_DEBUG() << "SuperaBase::LArData<supera::LArMCMiniPart_t>()" << std::endl;
     _ptr_mcmp_v = (std::vector<supera::LArMCMiniPart_t>*)(&data_v);
+    std::cout<<"_ptr_mcmp_v->size() = "<<_ptr_mcmp_v->size()<<std::endl;
     // This assumes that we only load LArMCMiniPart once.
     // Note that these pointers are not reset at each event as of now.
     if(_ptr_mcp_v) {
-      for (auto const& mcmp : (*_ptr_mcmp_v)) _ptr_mcp_v->push_back(supera::LArMCParticle_t(mcmp));
+      //for (auto const& mcmp : (*_ptr_mcmp_v)) _ptr_mcp_v->push_back(supera::LArMCParticle_t(mcmp));
+      for (auto const& mcmp : (*_ptr_mcmp_v)){
+        LARCV_DEBUG() << "SuperaBase::LArData<supera::LArMCMiniPart_t>()" << std::endl;
+        _ptr_mcp_v->push_back(supera::LArMCParticle_t(mcmp));
+      }
     }
   }
 

@@ -63,6 +63,9 @@ namespace larcv {
 
     auto cryostat_v   = cfg.get<std::vector<unsigned short> >("CryostatList");
     auto tpc_v        = cfg.get<std::vector<unsigned short> >("TPCList"     );
+    //Account for track ID offsets when using overlay samples - SBND
+    auto trackid_offsets = cfg.get<std::vector<unsigned int> >("TrackIDOffsets",std::vector<unsigned int>());
+
     std::vector<unsigned short> plane_v;
     plane_v = cfg.get<std::vector<unsigned short> >("PlaneList",plane_v);
     assert(cryostat_v.size() == tpc_v.size()  );
@@ -1408,6 +1411,7 @@ namespace larcv {
       " mother information " << mcs.MotherStart().X() <<" , "<<
                mcs.MotherStart().Y() << " , " <<
                mcs.MotherStart().Z() << " , " <<
+               mcs.MotherTrackID() << " , " <<
       " ancestor " << mcs.AncestorStart().X() <<" , "<<
                mcs.AncestorStart().Y() << " , " <<
                mcs.AncestorStart().Z() << " , " <<
@@ -1421,19 +1425,62 @@ namespace larcv {
       std::endl;
         if(grp.first_pt.t == larcv::kINVALID_DOUBLE)
           grp.part.first_step(mcs.DetProfile().X(),mcs.DetProfile().Y(),mcs.DetProfile().Z(),mcs.DetProfile().T());
-        LARCV_DEBUG()<<mcs.DetProfile().T()<<std::endl;
-        grp.part.parent_position(mcs.MotherStart().X(),
-               mcs.MotherStart().Y(),
-               mcs.MotherStart().Z(),
-               mcs.MotherStart().T());
-        grp.part.parent_creation_process(mcs.MotherProcess());
-        grp.part.ancestor_position(mcs.AncestorStart().X(),
-                 mcs.AncestorStart().Y(),
-                 mcs.AncestorStart().Z(),
-                 mcs.AncestorStart().T());
-        grp.part.ancestor_track_id(mcs.AncestorTrackID());
-        grp.part.ancestor_pdg_code(mcs.AncestorPdgCode());
-        grp.part.ancestor_creation_process(mcs.AncestorProcess());
+        auto mother_start = mcs.MotherStart();
+        auto mother_process = mcs.MotherProcess();
+        auto ancestor_start = mcs.AncestorStart();
+        auto ancestor_process = mcs.AncestorProcess();
+        auto ancestor_trackid = mcs.AncestorTrackID();
+        auto ancestor_pdgcode = mcs.AncestorPdgCode();
+        //Account for overlay samples having track ID offsets
+        if (trackid_offsets.size() > 0){
+          LARCV_DEBUG() << " in trackid_offsets " << std::endl;
+          for(unsigned int tid : trackid_offsets){
+            LARCV_DEBUG() << " tid " << tid << std::endl;
+            LARCV_DEBUG() << " mcs.MotherTrackID() " << mcs.MotherTrackID() << std::endl;
+            LARCV_DEBUG() << " mcs.AncestorTrackID() " << mcs.AncestorTrackID() << std::endl;
+            if(mcs.MotherTrackID() == tid){
+              //Both mother and ancestor are the same since this is a primary particle
+              mother_start = mcs.Start();
+              mother_process = mcs.Process();
+              ancestor_start = mcs.Start();
+              ancestor_process = mcs.Process();
+              ancestor_trackid = mcs.TrackID();
+              ancestor_pdgcode = mcs.PdgCode();
+            }
+            else if(mcs.AncestorTrackID() == tid && mcs.MotherTrackID() != tid){
+              //This means only the ancestor is not found, so set it to the same as the mother
+              ancestor_start = mcs.MotherStart();
+              ancestor_process = mcs.MotherProcess();
+              ancestor_trackid = mcs.MotherTrackID();
+              ancestor_pdgcode = mcs.MotherPdgCode();
+            }
+          }
+        }
+        grp.part.parent_position(mother_start.X(),
+              mother_start.Y(),
+              mother_start.Z(),
+              mother_start.T());
+        grp.part.parent_creation_process(mother_process);
+        grp.part.ancestor_position(ancestor_start.X(),
+                ancestor_start.Y(),
+                ancestor_start.Z(),
+                ancestor_start.T());
+        grp.part.ancestor_track_id(ancestor_trackid);
+        grp.part.ancestor_pdg_code(ancestor_pdgcode);
+        grp.part.ancestor_creation_process(ancestor_process);
+
+        LARCV_DEBUG() << "***--- shower info after offset reassignment"
+        << " mother information " << mother_start.X() <<" , "<<
+               mother_start.Y() << " , " <<
+               mother_start.Z() << " , " <<
+               mother_process << " , " <<
+        " ancestor " << ancestor_start.X() <<" , "<<
+                ancestor_start.Y() << " , " <<
+                ancestor_start.Z() << " , " <<
+                ancestor_trackid << " , " <<
+                ancestor_pdgcode << " , " <<
+                ancestor_process << " , " << std::endl;
+
       }
 
       for(auto const& child : mcs.DaughterTrackID()) {
@@ -1480,6 +1527,8 @@ namespace larcv {
       " mother information " << mct.MotherStart().X() <<" , "<<
                mct.MotherStart().Y() << " , " <<
                mct.MotherStart().Z() << " , " <<
+               mct.TrackID() << " , " <<
+               mct.PdgCode() << " , " <<
       " ancestor " << mct.AncestorStart().X() <<" , "<<
                mct.AncestorStart().Y() << " , " <<
                mct.AncestorStart().Z() << " , " <<
