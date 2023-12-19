@@ -103,6 +103,10 @@ namespace larcv {
 
     // FIXME(kvtsang) Temporary solution to access associations
     const art::Event *_event;
+    std::vector<supera::LArMCParticle_t> _merged_mcp_v; //merge dropped and normal MCParticles
+    bool _make_drop_request;
+    std::string _drop_request_producer;
+
   };
 
   //
@@ -120,6 +124,8 @@ namespace larcv {
   template <> const std::vector<supera::LArMCTruth_t>& SuperaBase::LArData<supera::LArMCTruth_t>() const;
 
   template <> const std::vector<supera::LArMCParticle_t>& SuperaBase::LArData<supera::LArMCParticle_t>() const;
+
+  template <> const std::vector<supera::LArDroppedMCParticle_t>& SuperaBase::LArData<supera::LArDroppedMCParticle_t>() const;
 
   template <> const std::vector<supera::LArMCTrack_t>& SuperaBase::LArData<supera::LArMCTrack_t>() const;
 
@@ -144,6 +150,8 @@ namespace larcv {
   template <> void SuperaBase::LArData(const std::vector<supera::LArMCTruth_t>& data_v);
 
   template <> void SuperaBase::LArData(const std::vector<supera::LArMCParticle_t>& data_v);
+
+  template <> void SuperaBase::LArData(const std::vector<supera::LArDroppedMCParticle_t>& data_v);
 
   template <> void SuperaBase::LArData(const std::vector<supera::LArMCMiniPart_t>& data_v);
 

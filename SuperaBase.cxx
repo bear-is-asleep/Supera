@@ -31,6 +31,7 @@ namespace larcv {
     auto producer_opdigit  = cfg.get<std::string>("LArOpDigitProducer",    "");
     auto producer_mctruth  = cfg.get<std::string>("LArMCTruthProducer",    "");
     auto producer_mcpart   = cfg.get<std::string>("LArMCParticleProducer", "");
+    auto producer_dropped_mcpart = cfg.get<std::string>("LArDroppedMCParticleProducer", "");
     auto producer_mcmp     = cfg.get<std::string>("LArMCMiniPartProducer", "");
     auto producer_mctrack  = cfg.get<std::string>("LArMCTrackProducer",    "");
     auto producer_mcshower = cfg.get<std::string>("LArMCShowerProducer",   "");
@@ -64,6 +65,14 @@ namespace larcv {
     if(!producer_mcpart.empty() ) {
       LARCV_INFO() << "Requesting MCParticle data product by " << producer_mcpart << std::endl;
       Request(supera::LArDataType_t::kLArMCParticle_t, producer_mcpart );
+    }
+
+    if(!producer_dropped_mcpart.empty() ) {
+      LARCV_INFO() << "Requesting DroppedMCParticle data product by " << producer_dropped_mcpart << std::endl;
+      LARCV_INFO() << "This is a special request for MCParticle data product that is dropped by LArSoft" << std::endl;
+      _make_drop_request = true;
+      _drop_request_producer = producer_dropped_mcpart;
+      //Request(supera::LArDataType_t::kLArMCParticle_t, producer_dropped_mcpart );
     }
 
     if(!producer_mcmp.empty() ) {
@@ -145,6 +154,9 @@ namespace larcv {
 
     // FIXME(kvtsang) Temporary solution to access associations
     _event          = nullptr;
+    _merged_mcp_v.clear();
+    _make_drop_request = false;
+    _drop_request_producer = "";
   }
 
   // FIXME(kvtsang) Temporary solution to access associations
@@ -167,7 +179,10 @@ namespace larcv {
   { if(!_ptr_mctruth_v) throw larbys("MCTruth data pointer not available"); return *_ptr_mctruth_v; }
 
   template <> const std::vector<supera::LArMCParticle_t>& SuperaBase::LArData<supera::LArMCParticle_t>() const
-  { if(!_ptr_mcp_v) throw larbys("MCParticle data pointer not available"); return *_ptr_mcp_v; }
+  { 
+    if(!_ptr_mcp_v) throw larbys("MCParticle data pointer not available"); 
+    return *_ptr_mcp_v; 
+  }
 
   template <> const std::vector<supera::LArMCMiniPart_t>& SuperaBase::LArData<supera::LArMCMiniPart_t>() const
   { if(!_ptr_mcmp_v) throw larbys("MCMiniPart data pointer not available"); return *_ptr_mcmp_v; }
@@ -210,7 +225,20 @@ namespace larcv {
 
   template <> void SuperaBase::LArData(const std::vector<supera::LArMCParticle_t>& data_v)
   {
-    _ptr_mcp_v = (std::vector<supera::LArMCParticle_t>*)(&data_v);
+    //Merge dropped and normal MCParticles
+    std::cout<<"_merged_mcp_v.size() = "<<_merged_mcp_v.size()<<std::endl;
+    std::cout<<"data_v.size() = "<<data_v.size()<<std::endl;
+    if (_make_drop_request){
+      std::cout<<"making drop request"<<std::endl;
+      Request(supera::LArDataType_t::kLArMCParticle_t, _drop_request_producer);
+      _make_drop_request = false;
+    }
+    if (_ptr_mcp_v) std::cout<<"_ptr_mcp_v->size() = "<<_ptr_mcp_v->size()<<std::endl;
+    _merged_mcp_v.insert(_merged_mcp_v.end(), data_v.begin(), data_v.end());
+    _ptr_mcp_v = &_merged_mcp_v;
+    std::cout<<"after filling"<<std::endl;
+    std::cout<<"_merged_mcp_v.size() = "<<_merged_mcp_v.size()<<std::endl;
+    std::cout<<"_ptr_mcp_v->size() = "<<_ptr_mcp_v->size()<<std::endl;
   }
 
   template <> void SuperaBase::LArData(const std::vector<supera::LArMCMiniPart_t>& data_v)

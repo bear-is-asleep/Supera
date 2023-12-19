@@ -30,6 +30,7 @@ namespace supera {
   typedef recob::Hit         LArHit_t;
   typedef simb::MCTruth      LArMCTruth_t;
   typedef simb::MCParticle   LArMCParticle_t;
+  typedef simb::MCParticle   LArDroppedMCParticle_t;
   typedef sim::MCParticleLite  LArMCMiniPart_t;
   typedef sim::MCTrack       LArMCTrack_t;
   typedef sim::MCShower      LArMCShower_t;
