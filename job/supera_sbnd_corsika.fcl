@@ -60,7 +60,7 @@ ProcessDriver: {
       LArSimEnergyDepositLiteProducer: "sedlite"
       Meta3DFromCluster3D: "mcst"
       Meta2DFromTensor2D:  ""
-      Verbosity: 2
+      Verbosity: 0
       UseSimEnergyDeposit: false #AnalyzeSimEnergyDeposit if true, else AnalyzeFirstLastStep - default false
       UseSimEnergyDepositLite: false 
       UseSimEnergyDepositPoints: false
@@ -73,7 +73,7 @@ ProcessDriver: {
         UseOrigTrackID: true
         DebugMode: true
         Profile: true
-        Verbosity: 2
+        Verbosity: 0
         Meta3DFromCluster3D: "pcluster"
         LArSimChProducer: "simtpc2d simpleSC"
         LArSpacePointProducers: ["cluster3d"]

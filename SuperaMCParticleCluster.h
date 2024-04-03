@@ -83,6 +83,11 @@ namespace larcv {
       size_t trackid,
       const std::map<int, supera::ParticleGroup>& part_grp_v,
       bool include_lescatter = false) const;
+    void SetParticleAncestory(const larcv::Voxel3DMeta& meta3d,
+                              std::map<int, supera::ParticleGroup>& part_grp_v,
+                              std::vector<int>& trackid2output,
+                              std::vector<int>& trackid2output2d,
+                              std::set<unsigned int>& mcs_trackid_s);
 
   private:
     int plane_index(unsigned int cryo_id, unsigned int tpc_id, unsigned int plane_id);

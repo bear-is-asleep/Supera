@@ -28,6 +28,11 @@ namespace supera {
       v = -1;
 
     for (size_t index = 0; index < larmcp_v.size(); ++index) {
+      std::cout << "MCParticleList: " << index
+      << " TrackID = " << larmcp_v[index].TrackId()
+      << " PDG = " << larmcp_v[index].PdgCode()
+      << " Mother = " << larmcp_v[index].Mother()
+      << std::endl;
       auto const& mcpart = larmcp_v[index];
       _trackid_v[index] = abs(mcpart.TrackId());
       _pdgcode_v[index] = abs(mcpart.PdgCode());
@@ -38,6 +43,13 @@ namespace supera {
     }
     // Parent/Ancestor info
     for (size_t index = 0; index < larmcp_v.size(); ++index) {
+      
+      std::cout << "MCParticleList Parent: " << index
+      << " TrackID = " << larmcp_v[index].TrackId()
+      << " PDG = " << larmcp_v[index].PdgCode()
+      << " Mother = " << larmcp_v[index].Mother()
+      << std::endl;
+
       auto const& mcpart = larmcp_v[index];
       int mother_id = mcpart.Mother();
       int mother_index = -1;
@@ -54,19 +66,33 @@ namespace supera {
       int parent_track_id = abs(mcpart.Mother());
       int ancestor_index = -1;
       int ancestor_track_id = -1;
+      std::cout << " MCParticleList Ancestry: " << std::endl;
       while (1) {
+        std::cout << " -- Subject TrackID = " << subject_track_id
+        << " -- Parent TrackID = " << parent_track_id
+        << std::endl;
         if ((size_t)(parent_track_id) >= _trackid2index.size()) break;
         if (parent_track_id == 0 || parent_track_id == subject_track_id) {
           ancestor_index = _trackid2index[subject_track_id];
           ancestor_track_id = subject_track_id;
+          std::cout << " -- Selected ancestor (and breaking) : " << ancestor_index << " TrackID = " << ancestor_track_id << std::endl;
           break;
         }
         auto const& parent_index = _trackid2index[parent_track_id];
-        if (parent_index < 0) break;
+        if (parent_index < 0){
+          std::cout << " -- Parent not found in the list, breaking" << std::endl;
+          break;
+        }
         auto const& parent = larmcp_v[parent_index];
         subject_track_id = abs(parent.TrackId());
         parent_track_id = abs(parent.Mother());
+        std::cout << " -- New Subject TrackID = " << subject_track_id
+        << " -- New Parent TrackID = " << parent_track_id
+        << std::endl;
       }
+      std::cout << " Selected ancestor : " << ancestor_index
+      << " TrackID = " << ancestor_track_id
+      << std::endl;
       _ancestor_index_v[index] = ancestor_index;
       _ancestor_trackid_v[index] = ancestor_track_id;
     }

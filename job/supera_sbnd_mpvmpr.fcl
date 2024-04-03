@@ -73,7 +73,7 @@ ProcessDriver: {
         UseOrigTrackID: true
         DebugMode: true
         Profile: true
-        Verbosity: 2
+        Verbosity: 0
         Meta3DFromCluster3D: "pcluster"
         LArSimChProducer: "simtpc2d simpleSC"
         LArSpacePointProducers: ["cluster3d"]
